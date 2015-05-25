@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.ChatComponentText;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
@@ -28,15 +31,20 @@ public class SVChatHandler {
 	public static int jainfoIndex = 1;
 	public static ArrayList<Block> tempList;
 	
+	private static Logger logger = LogManager.getLogger("SnitchVisualizer");
+	
 	@SubscribeEvent
 	public void onChat(ClientChatReceivedEvent event){
-		if(event.message != null){
+		if(event != null && event.message != null){
 			String msg = event.message.getUnformattedText();
-			if(msg.contains("world")){
+			if (msg == null) {
+				return;
+			}
+			if(!msg.contains("*") && msg.contains("world")){ 
 				parseSnitch(msg);
 			}
-			else if(msg.contains("snitch at")){
-				// does nothing yet
+			else if(msg.contains("*") && msg.contains("snitch at")){
+				//parseSnitch(msg)
 			}
 			else if(msg.contains("Used") || msg.contains("Block Break") || msg.contains("Block Place")){
 				// render block place/break/use
@@ -47,17 +55,22 @@ public class SVChatHandler {
 			}
 			else if(msg.contains("Snitch Log for") || msg.contains("Page 1 is empty for snitch")){
 				// export jainfo to csv
-				Snitch n = SV.instance.snitchList.get(SVPlayerHandler.snitchIndex);
-				String name = parseSnitchName(msg);
-				n.name = name;
-				SVFileIOHandler.saveList();
-				
-				if(snitchReport){
-					if(snitchReportName.equals("")) snitchReportName = name;
-					if(!snitchReportName.equals(name)){
-						snitchReport = false;
-						SVFileIOHandler.saveSnitchReport(snitchReportName);
-						snitchReportName = "";
+				if (SVPlayerHandler.snitchIndex > -1) { // fix issue 
+					Snitch n = SV.instance.snitchList.get(SVPlayerHandler.snitchIndex);
+					String name = parseSnitchName(msg);
+					n.name = name;
+					if (SVPlayerHandler.updateSnitchName) {
+						SVPlayerHandler.updateSnitchName = false; // done!
+					}
+					SVFileIOHandler.saveList();
+					
+					if(snitchReport){
+						if(snitchReportName.equals("")) snitchReportName = name;
+						if(!snitchReportName.equals(name)){
+							snitchReport = false;
+							SVFileIOHandler.saveSnitchReport(snitchReportName);
+							snitchReportName = "";
+						}
 					}
 				}
 			}
@@ -87,10 +100,18 @@ public class SVChatHandler {
 		msg = msg.substring(msg.indexOf(':') + 1);
 		String[] tokens = msg.split(", +"); // " 11.13, 11.25, 11.32"
 		if(tokens.length > 2){
-			double a = Double.parseDouble(tokens[0]);
-			double b = Double.parseDouble(tokens[1]);
-			double c = Double.parseDouble(tokens[2]);
-			
+			double a = 20.0;
+			double b = 20.0;
+			double c = 20.0;
+			try {
+				a = Double.parseDouble(tokens[0]);
+				b = Double.parseDouble(tokens[1]);
+				c = Double.parseDouble(tokens[2]);
+			} catch (Exception e) {
+				// replace with something specific, but when TPS
+				// is 20, game instagibs here.
+				logger.error("Failed to parse TPS:" + e.getMessage());
+			}
 			if(a < b && a < c){
 				SVTickHandler.waitTime = SVTickHandler.tickTimeout / a;
 			}
@@ -114,7 +135,7 @@ public class SVChatHandler {
 	public void parseSnitch(String msg){
 		if(msg.contains("[")){
 			msg = msg.substring(msg.indexOf("[") + 1);
-			SV.instance.logger.info("Parsing string " + msg);
+			logger.info("Parsing string [" + msg);
 			String[] tokens = msg.split("[ \\[\\]]+");
 			if (tokens.length == 5){
 				try{
@@ -138,9 +159,9 @@ public class SVChatHandler {
 						SVFileIOHandler.saveList();
 					}
 				}catch(NumberFormatException e){
-					SV.instance.logger.error("Failed to parse snitch from chat!");
+					logger.error("Failed to parse snitch from chat!");
 				}catch(NullPointerException e){
-					SV.instance.logger.error("Failed to create snitch instance!");
+					logger.error("Failed to create snitch instance!");
 				}
 			}
 		}
@@ -149,7 +170,7 @@ public class SVChatHandler {
 	public void parseBlock(String msg){
 		if(msg.contains(">")){
 			msg = msg.substring(msg.indexOf(">") + 1);
-			SV.instance.logger.info("Parsing string " + msg);
+			logger.info("Parsing string " + msg);
 			String[] tokens = msg.split(" +|\\[|\\]");
 			int type = 0;
 			if(tokens[2].equals("Used")) type = 1;
@@ -166,9 +187,9 @@ public class SVChatHandler {
 					else tempList.add(new Block(x, y, z, type, tokens[1], "BlockID: " + tokens[4]));
 				}
 			}catch(NumberFormatException e){
-				SV.instance.logger.error("Failed to parse block from chat!");
+				logger.error("Failed to parse block from chat!");
 			}catch(NullPointerException e){
-				SV.instance.logger.error("Failed to create block instance!");
+				logger.error("Failed to create block instance!");
 			}
 		}
 	}
@@ -176,7 +197,7 @@ public class SVChatHandler {
 	public void parseEntry(String msg){
 		if(msg.contains(">")){
 			msg = msg.substring(msg.indexOf(">") + 1);
-			SV.instance.logger.info("Parsing string " + msg);
+			logger.info("Parsing string " + msg);
 			String[] tokens = msg.split(" +");
 			if(tokens[2].equals("Entry")) tempList.add(new Block(0, 0, 0, 4, tokens[1], tokens[3] + " " + tokens[4]));
 		}

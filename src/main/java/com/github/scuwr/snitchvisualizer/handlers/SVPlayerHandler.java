@@ -2,6 +2,9 @@ package com.github.scuwr.snitchvisualizer.handlers;
 
 import java.util.ArrayList;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.util.ChatComponentText;
@@ -18,6 +21,8 @@ import com.github.scuwr.snitchvisualizer.classobjects.Snitch;
  *
  */
 public class SVPlayerHandler {
+	
+	private static Logger logger = LogManager.getLogger("SnitchVisualizer");
 	
 	public static int snitchIndex = -1;
 	public static boolean updateSnitchName = false;
@@ -43,6 +48,10 @@ public class SVPlayerHandler {
 	/**
 	 * Snitch detection is now 100% accurate to my knowledge, and shows no signs of missing snitches.
 	 * 
+	 * Editorial TODO: It's less snitches are missed, and more snitches when overlapping are ignored.
+	 *    Instead of using static variables and public parameter passing, this should return
+	 *    a list of snitches the player is "intersecting". (PD 5/2015)
+	 *
 	 * @param x pos
 	 * @param y pos
 	 * @param z pos
@@ -73,16 +82,14 @@ public class SVPlayerHandler {
 			Snitch n = SV.instance.snitchList.get(index);
 			n.cullTime = Snitch.changeToDate(672.0);
 			playerIsInSnitchArea = true;
+			updateSnitchName = false;
 			if(removeSnitch){
 				SV.instance.snitchList.remove(index);
-				SV.instance.logger.info("Snitch Removed!");
+				logger.info("Snitch Removed!");
 				Minecraft.getMinecraft().thePlayer.addChatMessage(new ChatComponentText("[" + SV.MODNAME + "] You have just deleted a Snitch!"));
 			}
 			else if (n.name.equals("Unknown")){
 				updateSnitchName = true;
-			}
-			else if (!n.name.equals("Unknown")){
-				updateSnitchName = false;
 			}
 		}
 		else if (playerIsInSnitchArea){
